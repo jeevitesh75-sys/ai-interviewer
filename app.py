@@ -96,9 +96,7 @@ role = st.text_input(
 
 
 # ---------------- VOICE INPUT ----------------
-st.markdown("### 🎤 Voice Input")
-
-audio = mic_recorder(start_prompt="🎙️ Start Recording", stop_prompt="⏹️ Stop Recording")
+import time
 
 if audio:
     st.info("Processing voice...")
@@ -107,15 +105,19 @@ if audio:
         text = speech_to_text(audio["bytes"])
         st.success(f"You said: {text}")
 
-        # ✅ SAFE: store separately (NO widget conflict)
         st.session_state.voice_role = text
         st.session_state.selected_role = text
 
         st.rerun()
 
     except Exception as e:
-        st.error(f"Voice error: {e}")
+        if "rate_limit_exceeded" in str(e):
+            st.warning("Too many requests. Waiting 5 seconds...")
 
+            time.sleep(5)
+            st.rerun()
+        else:
+            st.error(f"Voice error: {e}")
 
 # ---------------- ROLES ----------------
 roles = [
