@@ -12,6 +12,7 @@ import time
 # ---------------- GROQ CLIENT ----------------
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
+
 def speech_to_text(audio_bytes):
     with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
         f.write(audio_bytes)
@@ -30,9 +31,18 @@ def speech_to_text(audio_bytes):
 st.set_page_config(page_title="AI Interview Generator", layout="wide")
 
 
-# ---------------- AUTH (DISABLED FOR PUBLIC DEPLOYMENT) ----------------
+# ---------------- SESSION STATE INIT ----------------
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = True
+
+if "voice_role" not in st.session_state:
+    st.session_state.voice_role = ""
+
+if "selected_role" not in st.session_state:
+    st.session_state.selected_role = None
+
+if "voice_processed_id" not in st.session_state:
+    st.session_state.voice_processed_id = None
 
 
 # ---------------- SETTINGS ----------------
@@ -59,7 +69,7 @@ translations = {
 t = translations[language]
 
 
-# ---------------- APPLY THEME ----------------
+# ---------------- THEME ----------------
 royal_css(theme)
 
 
@@ -72,7 +82,7 @@ with col1:
     st.markdown("👤 Welcome, User")
 
 with col2:
-    if st.button("Logout", key="logout_btn"):
+    if st.button("Logout"):
         st.session_state.clear()
         st.rerun()
 
@@ -82,11 +92,6 @@ uploaded_bg = st.file_uploader("Upload Background Image", type=["png", "jpg", "j
 set_background(uploaded_bg)
 
 
-# ---------------- VOICE STORAGE ----------------
-if "voice_role" not in st.session_state:
-    st.session_state.voice_role = ""
-
-
 # ---------------- ROLE INPUT ----------------
 st.markdown("### 🔍 Search Job Role")
 
@@ -94,6 +99,10 @@ role = st.text_input(
     "Type or use voice below",
     value=st.session_state.voice_role
 )
+
+# safe sync
+if role:
+    st.session_state.selected_role = role
 
 
 # ---------------- VOICE INPUT (FIXED) ----------------
@@ -105,25 +114,30 @@ audio = mic_recorder(
 )
 
 if audio is not None:
-    st.info("Processing voice...")
 
-    try:
-        text = speech_to_text(audio["bytes"])
-        st.success(f"You said: {text}")
+    audio_id = str(len(audio["bytes"]))
 
-        # safe update
-        st.session_state.voice_role = text
-        st.session_state.selected_role = text
+    if st.session_state.voice_processed_id != audio_id:
 
-        st.rerun()
+        st.info("Processing voice...")
 
-    except Exception as e:
-        if "rate_limit_exceeded" in str(e):
-            st.warning("Too many requests. Wait 5 seconds...")
-            time.sleep(5)
+        try:
+            text = speech_to_text(audio["bytes"])
+            st.success(f"You said: {text}")
+
+            st.session_state.voice_role = text
+            st.session_state.selected_role = text
+
+            st.session_state.voice_processed_id = audio_id
+
             st.rerun()
-        else:
-            st.error(f"Voice error: {e}")
+
+        except Exception as e:
+            if "rate_limit_exceeded" in str(e):
+                st.warning("Rate limit reached. Wait a few seconds and try again.")
+                time.sleep(3)
+            else:
+                st.error(f"Voice error: {e}")
 
 
 # ---------------- ROLES ----------------
@@ -135,9 +149,6 @@ roles = [
 
 st.subheader("Select Job Role")
 
-if "selected_role" not in st.session_state:
-    st.session_state.selected_role = None
-
 cols = st.columns(3)
 
 for i, r in enumerate(roles):
@@ -145,11 +156,8 @@ for i, r in enumerate(roles):
         if st.button(r, key=f"role_{i}"):
             st.session_state.selected_role = r
 
-# manual override
-if role and role != st.session_state.get("selected_role"):
-    st.session_state.selected_role = role
 
-selected_role = st.session_state.selected_role
+selected_role = st.session_state.get("selected_role")
 
 
 # ---------------- CONFIG ----------------
@@ -173,7 +181,7 @@ if selected_role:
         coding = st.slider("Coding", 0, 100, 30)
 
     # ---------------- GENERATE ----------------
-    if st.button(t["generate"], key="generate_btn"):
+    if st.button(t["generate"]):
 
         prompt = build_prompt(
             selected_role,
@@ -185,11 +193,10 @@ if selected_role:
         )
 
         result = generate_questions(prompt)
-
         questions, answers = format_output(result)
 
         if not questions:
-            st.error("No questions generated. Check API/format.")
+            st.error("No questions generated. Check API.")
         else:
             st.session_state.questions = questions
             st.session_state.answers = answers
@@ -204,7 +211,7 @@ if "questions" in st.session_state:
     for i, q in enumerate(st.session_state.questions):
         st.markdown(f"**{i+1}. {q}**")
 
-    if st.button("Show Answers", key="show_ans_btn"):
+    if st.button("Show Answers"):
         st.session_state.show_answers = True
 
 
