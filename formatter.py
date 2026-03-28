@@ -2,15 +2,20 @@ def format_output(text):
     questions = []
     answers = []
 
-    lines = text.split("\n")
+    parts = text.split("Q")
 
-    for line in lines:
-        if line.strip().startswith("Q"):
-            if "Answer:" in line:
-                q, a = line.split("Answer:")
-                questions.append(q.strip())
-                answers.append(a.strip())
-            else:
-                questions.append(line.strip())
+    for part in parts:
+        part = part.strip()
+        if part == "":
+            continue
+
+        if "Answer:" in part:
+            q, a = part.split("Answer:", 1)
+
+            q = "Q" + q.strip()
+            a = a.strip()
+
+            questions.append(q)
+            answers.append(a)
 
     return questions, answers
