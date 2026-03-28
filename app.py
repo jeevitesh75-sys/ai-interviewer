@@ -7,6 +7,7 @@ from streamlit_mic_recorder import mic_recorder
 from groq import Groq
 import tempfile
 import os
+import time
 
 # ---------------- GROQ CLIENT ----------------
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
@@ -81,12 +82,12 @@ uploaded_bg = st.file_uploader("Upload Background Image", type=["png", "jpg", "j
 set_background(uploaded_bg)
 
 
-# ---------------- VOICE STORAGE (SAFE STATE) ----------------
+# ---------------- VOICE STORAGE ----------------
 if "voice_role" not in st.session_state:
     st.session_state.voice_role = ""
 
 
-# ---------------- ROLE INPUT (SAFE) ----------------
+# ---------------- ROLE INPUT ----------------
 st.markdown("### 🔍 Search Job Role")
 
 role = st.text_input(
@@ -95,16 +96,22 @@ role = st.text_input(
 )
 
 
-# ---------------- VOICE INPUT ----------------
-import time
+# ---------------- VOICE INPUT (FIXED) ----------------
+st.markdown("### 🎤 Voice Input")
 
-if audio:
+audio = mic_recorder(
+    start_prompt="🎙️ Start Recording",
+    stop_prompt="⏹️ Stop Recording"
+)
+
+if audio is not None:
     st.info("Processing voice...")
 
     try:
         text = speech_to_text(audio["bytes"])
         st.success(f"You said: {text}")
 
+        # safe update
         st.session_state.voice_role = text
         st.session_state.selected_role = text
 
@@ -112,12 +119,12 @@ if audio:
 
     except Exception as e:
         if "rate_limit_exceeded" in str(e):
-            st.warning("Too many requests. Waiting 5 seconds...")
-
+            st.warning("Too many requests. Wait 5 seconds...")
             time.sleep(5)
             st.rerun()
         else:
             st.error(f"Voice error: {e}")
+
 
 # ---------------- ROLES ----------------
 roles = [
@@ -138,10 +145,9 @@ for i, r in enumerate(roles):
         if st.button(r, key=f"role_{i}"):
             st.session_state.selected_role = r
 
-# manual input override (SAFE)
+# manual override
 if role and role != st.session_state.get("selected_role"):
     st.session_state.selected_role = role
-
 
 selected_role = st.session_state.selected_role
 
