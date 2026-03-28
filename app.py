@@ -138,7 +138,7 @@ if selected_role:
         result = generate_questions(prompt)
 
         # DEBUG (remove later if needed)
-        st.write("DEBUG:", result)
+        result = generate_questions(prompt)
 
         questions, answers = format_output(result)
 
