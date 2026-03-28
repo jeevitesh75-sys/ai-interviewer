@@ -25,16 +25,20 @@ def speech_to_text(audio_bytes):
 
     return transcription.text
 
-# ---------------- AUTH ----------------
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
 
-if not st.session_state.logged_in:
-    auth_page()
-    st.stop()
-
-# ---------------- PAGE CONFIG ----------------
+# ---------------- PAGE CONFIG (MUST BE FIRST) ----------------
 st.set_page_config(page_title="AI Interview Generator", layout="wide")
+
+
+# ---------------- AUTH (SAFE FOR PUBLIC DEPLOYMENT) ----------------
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = True   # 👈 IMPORTANT FIX (no forced login)
+
+# OPTIONAL AUTH (DO NOT BLOCK PUBLIC USERS)
+# if not st.session_state.logged_in:
+#     auth_page()
+#     st.stop()
+
 
 # ---------------- SETTINGS ----------------
 with st.sidebar:
@@ -49,29 +53,20 @@ with st.sidebar:
         unsafe_allow_html=True
     )
 
+
 # ---------------- LANGUAGE ----------------
 translations = {
-    "English": {
-        "questions": "Questions",
-        "answers": "Answers",
-        "generate": "Generate Questions"
-    },
-    "Hindi": {
-        "questions": "प्रश्न",
-        "answers": "उत्तर",
-        "generate": "प्रश्न बनाएं"
-    },
-    "Telugu": {
-        "questions": "ప్రశ్నలు",
-        "answers": "సమాధానాలు",
-        "generate": "ప్రశ్నలు సృష్టించండి"
-    }
+    "English": {"questions": "Questions", "answers": "Answers", "generate": "Generate Questions"},
+    "Hindi": {"questions": "प्रश्न", "answers": "उत्तर", "generate": "प्रश्न बनाएं"},
+    "Telugu": {"questions": "ప్రశ్నలు", "answers": "సమాధానాలు", "generate": "ప్రశ్నలు సృష్టించండి"}
 }
 
 t = translations[language]
 
+
 # ---------------- APPLY THEME ----------------
 royal_css(theme)
+
 
 # ---------------- HEADER ----------------
 st.markdown("<div class='title'>AI Interview Generator</div>", unsafe_allow_html=True)
@@ -79,21 +74,25 @@ st.markdown("<div class='title'>AI Interview Generator</div>", unsafe_allow_html
 col1, col2 = st.columns([5, 2])
 
 with col1:
-    st.markdown(f"👤 Welcome, {st.session_state.get('current_user', 'User')}")
+    st.markdown("👤 Welcome, User")
 
 with col2:
     if st.button("Logout", key="logout_btn"):
-        st.session_state.logged_in = False
+        st.session_state.clear()
         st.rerun()
+
 
 # ---------------- BACKGROUND ----------------
 uploaded_bg = st.file_uploader("Upload Background Image", type=["png", "jpg", "jpeg"])
 set_background(uploaded_bg)
 
-# ---------------- SEARCH ----------------
+
+# ---------------- ROLE INPUT ----------------
 st.markdown("### 🔍 Search Job Role")
 
-role = st.text_input("Type or use voice below", key="role_input")
+# SAFE KEY (NOT DIRECTLY role_input)
+role = st.text_input("Type or use voice below", key="role_input_value")
+
 
 # ---------------- VOICE INPUT ----------------
 st.markdown("### 🎤 Voice Input")
@@ -108,12 +107,15 @@ if audio:
 
         st.success(f"You said: {text}")
 
-        # AUTO FILL INPUT + ROLE
-        st.session_state.role_input = text
-        st.session_state.selected_role = text
+        # ✅ SAFE UPDATE (NO STREAMLIT ERROR)
+        st.session_state["role_input_value"] = text
+        st.session_state["selected_role"] = text
+
+        st.rerun()
 
     except Exception as e:
         st.error(f"Voice error: {e}")
+
 
 # ---------------- ROLES ----------------
 roles = [
@@ -134,11 +136,13 @@ for i, r in enumerate(roles):
         if st.button(r, key=f"role_{i}"):
             st.session_state.selected_role = r
 
-# manual input override
-if role:
+# manual input override (SAFE)
+if role and role != st.session_state.get("selected_role"):
     st.session_state.selected_role = role
 
+
 selected_role = st.session_state.selected_role
+
 
 # ---------------- CONFIG ----------------
 if selected_role:
@@ -183,6 +187,7 @@ if selected_role:
             st.session_state.answers = answers
             st.session_state.show_answers = False
 
+
 # ---------------- DISPLAY ----------------
 if "questions" in st.session_state:
 
@@ -193,6 +198,7 @@ if "questions" in st.session_state:
 
     if st.button("Show Answers", key="show_ans_btn"):
         st.session_state.show_answers = True
+
 
 # ---------------- ANSWERS ----------------
 if st.session_state.get("show_answers"):
