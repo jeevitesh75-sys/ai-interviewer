@@ -3,7 +3,6 @@ from groq_client import generate_questions
 from prompt_builder import build_prompt
 from formatter import format_output
 from ui_components import royal_css, set_background
-from auth import auth_page
 from streamlit_mic_recorder import mic_recorder
 from groq import Groq
 import tempfile
@@ -26,18 +25,13 @@ def speech_to_text(audio_bytes):
     return transcription.text
 
 
-# ---------------- PAGE CONFIG (MUST BE FIRST) ----------------
+# ---------------- PAGE CONFIG ----------------
 st.set_page_config(page_title="AI Interview Generator", layout="wide")
 
 
-# ---------------- AUTH (SAFE FOR PUBLIC DEPLOYMENT) ----------------
+# ---------------- AUTH (DISABLED FOR PUBLIC DEPLOYMENT) ----------------
 if "logged_in" not in st.session_state:
-    st.session_state.logged_in = True   # 👈 IMPORTANT FIX (no forced login)
-
-# OPTIONAL AUTH (DO NOT BLOCK PUBLIC USERS)
-# if not st.session_state.logged_in:
-#     auth_page()
-#     st.stop()
+    st.session_state.logged_in = True
 
 
 # ---------------- SETTINGS ----------------
@@ -87,11 +81,18 @@ uploaded_bg = st.file_uploader("Upload Background Image", type=["png", "jpg", "j
 set_background(uploaded_bg)
 
 
-# ---------------- ROLE INPUT ----------------
+# ---------------- VOICE STORAGE (SAFE STATE) ----------------
+if "voice_role" not in st.session_state:
+    st.session_state.voice_role = ""
+
+
+# ---------------- ROLE INPUT (SAFE) ----------------
 st.markdown("### 🔍 Search Job Role")
 
-# SAFE KEY (NOT DIRECTLY role_input)
-role = st.text_input("Type or use voice below", key="role_input_value")
+role = st.text_input(
+    "Type or use voice below",
+    value=st.session_state.voice_role
+)
 
 
 # ---------------- VOICE INPUT ----------------
@@ -104,12 +105,11 @@ if audio:
 
     try:
         text = speech_to_text(audio["bytes"])
-
         st.success(f"You said: {text}")
 
-        # ✅ SAFE UPDATE (NO STREAMLIT ERROR)
-        st.session_state["role_input_value"] = text
-        st.session_state["selected_role"] = text
+        # ✅ SAFE: store separately (NO widget conflict)
+        st.session_state.voice_role = text
+        st.session_state.selected_role = text
 
         st.rerun()
 
