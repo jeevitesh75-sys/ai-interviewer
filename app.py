@@ -5,6 +5,25 @@ from formatter import format_output
 from ui_components import royal_css, set_background
 from auth import auth_page
 from streamlit_mic_recorder import mic_recorder
+from groq import Groq
+import tempfile
+import os
+
+# ---------------- GROQ CLIENT ----------------
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+def speech_to_text(audio_bytes):
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
+        f.write(audio_bytes)
+        temp_path = f.name
+
+    with open(temp_path, "rb") as file:
+        transcription = client.audio.transcriptions.create(
+            file=file,
+            model="whisper-large-v3"
+        )
+
+    return transcription.text
 
 # ---------------- AUTH ----------------
 if "logged_in" not in st.session_state:
@@ -71,20 +90,30 @@ with col2:
 uploaded_bg = st.file_uploader("Upload Background Image", type=["png", "jpg", "jpeg"])
 set_background(uploaded_bg)
 
-# ---------------- SEARCH + VOICE ----------------
-col1, col2, col3 = st.columns([1, 2, 1])
+# ---------------- SEARCH ----------------
+st.markdown("### 🔍 Search Job Role")
 
-with col2:
-    role = st.text_input("🔍 Search Job Role")
+role = st.text_input("Type or use voice below", key="role_input")
 
-    st.markdown("### 🎤 Voice Input")
-    audio = mic_recorder(start_prompt="Start Recording", stop_prompt="Stop Recording")
+# ---------------- VOICE INPUT ----------------
+st.markdown("### 🎤 Voice Input")
 
-    if audio:
-        st.success("Voice recorded! Processing...")
-        st.info("👉 Voice to text coming soon (use manual typing for now)")
-        # NOTE: This records audio, but speech-to-text needs Whisper API
-        # If you want full voice → text, tell me, I’ll add it
+audio = mic_recorder(start_prompt="🎙️ Start Recording", stop_prompt="⏹️ Stop Recording")
+
+if audio:
+    st.info("Processing voice...")
+
+    try:
+        text = speech_to_text(audio["bytes"])
+
+        st.success(f"You said: {text}")
+
+        # AUTO FILL INPUT + ROLE
+        st.session_state.role_input = text
+        st.session_state.selected_role = text
+
+    except Exception as e:
+        st.error(f"Voice error: {e}")
 
 # ---------------- ROLES ----------------
 roles = [
@@ -105,6 +134,7 @@ for i, r in enumerate(roles):
         if st.button(r, key=f"role_{i}"):
             st.session_state.selected_role = r
 
+# manual input override
 if role:
     st.session_state.selected_role = role
 
