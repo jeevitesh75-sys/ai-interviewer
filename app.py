@@ -114,17 +114,22 @@ if selected_role:
 
 # ---------------- DISPLAY ----------------
 if "questions" in st.session_state:
-    st.markdown(f"<h2 style='color:gold;'>✨ {['questions']}</h2>", unsafe_allow_html=True)
+
+    st.markdown("## Questions")
 
     for i, q in enumerate(st.session_state.questions):
-        st.markdown(
-            f"<div class='question-box'>{i+1}. {q}</div>",
-            unsafe_allow_html=True
-        )
+        st.markdown(f"**{i+1}. {q}**")
 
-    if st.button("Show Answers", key="show_answers_btn"):
+    if st.button("Show Answers"):
         st.session_state.show_answers = True
 
+# Show answers only when clicked
+if st.session_state.get("show_answers"):
+
+    st.markdown("## Answers")
+
+    for i, a in enumerate(st.session_state.answers):
+        st.markdown(f"{i+1}. {a}")
 
 # ---------------- ANSWERS ----------------
 if st.session_state.get("show_answers"):

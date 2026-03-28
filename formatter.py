@@ -1,15 +1,16 @@
-import re
-
 def format_output(text):
     questions = []
     answers = []
 
-    pattern = r"Q\d+:\s*(.*?)\s*Answer:\s*(.*?)(?=Q\d+:|$)"
+    lines = text.split("\n")
 
-    matches = re.findall(pattern, text, re.DOTALL)
-
-    for q, a in matches:
-        questions.append(q.strip())
-        answers.append(a.strip() if a.strip() else "No answer provided")
+    for line in lines:
+        if line.strip().startswith("Q"):
+            if "Answer:" in line:
+                q, a = line.split("Answer:")
+                questions.append(q.strip())
+                answers.append(a.strip())
+            else:
+                questions.append(line.strip())
 
     return questions, answers
